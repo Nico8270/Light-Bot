@@ -2,6 +2,8 @@
 Clase para mostrar el estado del juego en consola
 """
 
+from game_state import GameState
+
 class GameRenderer:
     def __init__(self):
         self.symbols = {
@@ -106,16 +108,56 @@ class GameRenderer:
         print(f"  {self.symbols['robot_on_light']} = Robot en luz encendida")
         print()
 
-    def show_solution(self, path):
+    def show_solution(self, path, algorithm_name=""):
         """Muestra la solución encontrada"""
         if not path:
             print("¡El robot ya está en la meta!")
             return
         
-        print("Solución encontrada:")
+        if algorithm_name:
+            print(f"Solución encontrada por {algorithm_name}:")
+        else:
+            print("Solución encontrada:")
+        
+        # Mostrar como secuencia con flechas
+        solution_sequence = " → ".join(path)
+        print(f"  {solution_sequence}")
+        print()
+        
+        # Mostrar paso a paso
         for i, step in enumerate(path, 1):
             print(f"  {i}. {step}")
         print()
+
+    def show_heuristic_explanation(self, node, light_positions):
+        """Muestra el cálculo detallado de la heurística"""
+        lights_off = sum(1 for light in node.lights if light == 0)
+        
+        print(f"\n🧮 CÁLCULO DE HEURÍSTICA para posición ({node.x}, {node.y}):")
+        print(f"   Estado de luces: {node.lights}")
+        print(f"   Luces apagadas: {lights_off}")
+        
+        if lights_off == 0:
+            print(f"   Distancia mínima: 0 (todas las luces encendidas)")
+            print(f"   h(n) = {lights_off} + 0 = 0")
+            return 0
+        
+        min_distance = float('inf')
+        closest_light = None
+        
+        for i, (lx, ly) in enumerate(light_positions):
+            if node.lights[i] == 0:
+                distance = abs(node.x - lx) + abs(node.y - ly)
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_light = (lx, ly)
+        
+        print(f"   Luz más cercana: {closest_light}")
+        print(f"   Distancia mínima: {min_distance}")
+        print(f"   h(n) = {lights_off} + {min_distance} = {lights_off + min_distance}")
+        print(f"   g(n) = {node.cost}, f(n) = g(n) + h(n) = {node.cost + lights_off + min_distance}")
+        
+        return lights_off + min_distance
 
     def show_stats(self, astar_result, bfs_result):
         """Muestra las estadísticas de comparación"""
@@ -149,6 +191,16 @@ class GameRenderer:
             else:
                 print(f"📈 A* exploró {efficiency_nodes:.1f}% menos nodos que BFS")
                 print("⏱️  El tiempo de ejecución es muy rápido para comparar")
+        
+        print("\n" + "="*60)
+        print("🛣️  CAMINOS SOLUCIÓN")
+        print("="*60)
+        
+        if astar_result['success']:
+            self.show_solution(astar_result['path'], "A*")
+        
+        if bfs_result['success']:
+            self.show_solution(bfs_result['path'], "BFS")
 
     def show_visited_path(self, level, visited_nodes, algorithm_name):
         """Muestra el recorrido de nodos visitados por el algoritmo"""
@@ -185,7 +237,7 @@ class GameRenderer:
         print("-" * (cols * 4))
         print(f"Total de nodos únicos visitados: {len(set((node.x, node.y) for node in visited_nodes))}")
 
-    def show_algorithm_progress(self, level, result, algorithm_name):
+    def show_algorithm_progress(self, level, result, algorithm_name, show_heuristic=False):
         """Muestra el progreso completo del algoritmo"""
         print(f"\n" + "="*60)
         print(f"📊 {algorithm_name} - RESULTADOS DETALLADOS")
@@ -195,13 +247,17 @@ class GameRenderer:
             print(f"✅ ¡Solución encontrada en {result['steps']} pasos!")
             print(f"🔍 Nodos explorados: {result['nodes_explored']}")
             print(f"⏱️  Tiempo: {result['execution_time']:.2f}ms")
+            
+            # Mostrar información de heurística para A*
+            if show_heuristic and 'final_node' in result and result['final_node']:
+                print(f"📐 Valores finales: g={result['final_node'].cost}, h={result['final_node'].heuristic}, f={result['final_node'].total_cost}")
         
             # Mostrar recorrido de visita
             self.show_visited_path(level, result['visited_nodes'], algorithm_name)
         
             # Mostrar camino solución
             print(f"\n🛣️  CAMINO SOLUCIÓN ({algorithm_name}):")
-            self.show_solution(result['path'])
+            self.show_solution(result['path'], algorithm_name)
         else:
             print("❌ No se encontró solución")
             print(f"🔍 Nodos explorados: {result['nodes_explored']}")
@@ -209,3 +265,48 @@ class GameRenderer:
         
             # Mostrar recorrido de visita aunque no haya solución
             self.show_visited_path(level, result['visited_nodes'], algorithm_name)
+    
+    def evaluate_user_solution(self, level, robot_start, user_path):
+        """Evalúa si la solución del usuario es correcta"""
+        print("\n" + "="*60)
+        print("🎯 EVALUANDO TU SOLUCIÓN")
+        print("="*60)
+        
+        # Simular la ejecución de la solución del usuario
+        game_state = GameState(level['grid'], robot_start[0], robot_start[1])
+        current_node = game_state.get_initial_node()
+        
+        print(f"Secuencia ingresada: {' → '.join(user_path)}")
+        print(f"Total de pasos: {len(user_path)}")
+        print("\nSimulando ejecución:")
+        
+        for i, action in enumerate(user_path, 1):
+            print(f"  Paso {i}: {action}")
+            
+            # Intentar ejecutar la acción
+            successors = game_state.get_successors(current_node)
+            next_node = None
+            
+            for successor in successors:
+                if successor.action == action:
+                    next_node = successor
+                    break
+            
+            if next_node is None:
+                print(f"    ❌ Acción inválida en posición ({current_node.x}, {current_node.y})")
+                return False, len(user_path)
+            
+            current_node = next_node
+            print(f"    ✅ Robot en ({current_node.x}, {current_node.y}), luces: {current_node.lights}")
+        
+        # Verificar si se alcanzó la meta
+        is_goal = game_state.is_goal(current_node)
+        
+        if is_goal:
+            print(f"\n🎉 ¡SOLUCIÓN CORRECTA! Todas las luces encendidas en {len(user_path)} pasos")
+            return True, len(user_path)
+        else:
+            lights_on = sum(current_node.lights)
+            total_lights = len(current_node.lights)
+            print(f"\n❌ Solución incompleta. Luces encendidas: {lights_on}/{total_lights}")
+            return False, len(user_path)

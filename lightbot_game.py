@@ -2,6 +2,7 @@
 Juego LightBot - Comparación A* vs BFS
 """
 from game_state import GameState
+from game_state import GameState
 from game_renderer import GameRenderer
 from astar import AStar
 from bfs import BFS
@@ -31,8 +32,10 @@ class LightBotGame:
             elif choice == '4':
                 self._compare_all_levels()
             elif choice == '5':
-                self._manual_play()
+                self._user_guess_mode()
             elif choice == '6':
+                self._generate_readme()
+            elif choice == '7':
                 print("¡Gracias por jugar!")
                 break
             else:
@@ -47,8 +50,9 @@ class LightBotGame:
         print("2. Resolver Nivel 2 (Intermedio)")
         print("3. Resolver Nivel 3 (Avanzado)")
         print("4. Comparar todos los niveles")
-        print("5. Juego manual (adivinar camino)")
-        print("6. Salir")
+        print("5. Modo adivinanza (ingresa tu solución)")
+        print("6. Generar README.txt con resultados")
+        print("7. Salir")
         print()
 
     def _play_level(self, level_number):
@@ -62,6 +66,10 @@ class LightBotGame:
         print("🎯 PRESENTACIÓN DEL PROBLEMA")
         print("="*60)
         self.renderer.render_level(level, robot_x, robot_y)
+        
+        # Mostrar explicación de la heurística
+        initial_node = self.game_state.get_initial_node()
+        self.renderer.show_heuristic_explanation(initial_node, self.game_state.light_positions)
     
         input("\nPresiona ENTER para ver la solución con A*...")
     
@@ -72,7 +80,7 @@ class LightBotGame:
         astar_result = astar_solver.solve()
     
         # Mostrar progreso detallado de A*
-        self.renderer.show_algorithm_progress(level, astar_result, "A*")
+        self.renderer.show_algorithm_progress(level, astar_result, "A*", show_heuristic=True)
     
         input("\nPresiona ENTER para ver la solución con BFS...")
     
@@ -90,6 +98,90 @@ class LightBotGame:
         # Mostrar comparación
         self.renderer.show_stats(astar_result, bfs_result)
 
+    def _user_guess_mode(self):
+        """Modo donde el usuario adivina la solución antes de ver los algoritmos"""
+        print("\n🎮 MODO ADIVINANZA - Ingresa tu solución")
+        print("=" * 50)
+        
+        # Seleccionar nivel
+        while True:
+            try:
+                level_num = int(input("Selecciona nivel (1-3): "))
+                if 1 <= level_num <= 3:
+                    break
+                else:
+                    print("Nivel debe estar entre 1 y 3")
+            except ValueError:
+                print("Por favor ingresa un número válido")
+        
+        level = get_level(level_num)
+        robot_x, robot_y = level['robot_start']
+        
+        # Mostrar el problema completo
+        print("\n" + "="*60)
+        print("🎯 PROBLEMA A RESOLVER")
+        print("="*60)
+        self.renderer.render_level(level, robot_x, robot_y)
+        
+        print("Comandos disponibles:")
+        print("  ARRIBA, ABAJO, IZQUIERDA, DERECHA - para mover")
+        print("  ENCENDER - para encender luz")
+        print()
+        
+        # Solicitar solución del usuario
+        user_path = []
+        print("Ingresa tu solución paso a paso (escribe 'FIN' para terminar):")
+        
+        while True:
+            step = input(f"Paso {len(user_path) + 1}: ").strip().upper()
+            
+            if step == 'FIN':
+                break
+            elif step in ['ARRIBA', 'ABAJO', 'IZQUIERDA', 'DERECHA', 'ENCENDER']:
+                user_path.append(step)
+                print(f"  ✅ Agregado: {step}")
+            else:
+                print("  ❌ Comando inválido. Usa: ARRIBA, ABAJO, IZQUIERDA, DERECHA, ENCENDER, FIN")
+        
+        if not user_path:
+            print("No ingresaste ninguna solución.")
+            return
+        
+        # Evaluar la solución del usuario
+        is_correct, user_steps = self.renderer.evaluate_user_solution(level, (robot_x, robot_y), user_path)
+        
+        input("\nPresiona ENTER para ver las soluciones de los algoritmos...")
+        
+        # Resolver con algoritmos
+        game_state = GameState(level['grid'], robot_x, robot_y)
+        
+        astar_solver = AStar(game_state)
+        astar_result = astar_solver.solve()
+        
+        bfs_solver = BFS(game_state)
+        bfs_result = bfs_solver.solve()
+        
+        # Mostrar comparación incluyendo solución del usuario
+        print("\n" + "="*60)
+        print("📊 COMPARACIÓN COMPLETA")
+        print("="*60)
+        print()
+        print("Tu solución:")
+        print(f"  Pasos: {user_steps}")
+        print(f"  Correcta: {'✅ Sí' if is_correct else '❌ No'}")
+        print()
+        
+        self.renderer.show_stats(astar_result, bfs_result)
+        
+        if is_correct and astar_result['success']:
+            optimal_steps = astar_result['steps']
+            if user_steps == optimal_steps:
+                print("🌟 ¡FELICITACIONES! Encontraste la solución óptima!")
+            elif user_steps > optimal_steps:
+                print(f"📈 Tu solución usa {user_steps - optimal_steps} pasos adicionales")
+            else:
+                print("🤔 Esto es extraño, tu solución es mejor que la óptima...")
+
     def _compare_all_levels(self):
         """Compara el rendimiento en todos los niveles"""
         print("\n🔍 COMPARACIÓN COMPLETA DE TODOS LOS NIVELES")
@@ -99,6 +191,8 @@ class LightBotGame:
         total_bfs_nodes = 0
         total_astar_time = 0
         total_bfs_time = 0
+        
+        results_summary = []
         
         for level_num in [1, 2, 3]:
             level = get_level(level_num)
@@ -122,6 +216,14 @@ class LightBotGame:
             total_astar_time += astar_result['execution_time']
             total_bfs_time += bfs_result['execution_time']
             
+            # Guardar resultados para README
+            results_summary.append({
+                'level': level_num,
+                'level_name': level['name'],
+                'astar': astar_result,
+                'bfs': bfs_result
+            })
+            
             # Mostrar resultados del nivel
             print(f"A*:  {astar_result['nodes_explored']:3d} nodos, {astar_result['steps']:2d} pasos, {astar_result['execution_time']:6.2f}ms")
             print(f"BFS: {bfs_result['nodes_explored']:3d} nodos, {bfs_result['steps']:2d} pasos, {bfs_result['execution_time']:6.2f}ms")
@@ -137,6 +239,79 @@ class LightBotGame:
         
         print(f"\nA* fue {efficiency_nodes:.1f}% más eficiente en nodos explorados")
         print(f"A* fue {efficiency_time:.1f}% más rápido en tiempo de ejecución")
+        
+        # Guardar resultados para uso posterior
+        self.last_comparison_results = results_summary
+
+    def _generate_readme(self):
+        """Genera el archivo README.txt con los resultados"""
+        print("\n📝 GENERANDO README.txt...")
+        
+        # Ejecutar comparación si no se ha hecho
+        if not hasattr(self, 'last_comparison_results'):
+            print("Ejecutando comparación de todos los niveles...")
+            self._compare_all_levels()
+        
+        try:
+            with open('README.txt', 'w', encoding='utf-8') as f:
+                f.write("# LightBot Python - Comparación A* vs BFS\n")
+                f.write("=" * 50 + "\n\n")
+                
+                f.write("## Descripción del Proyecto\n\n")
+                f.write("Este proyecto implementa una versión simplificada del juego LightBot\n")
+                f.write("donde un robot debe encender todas las luces azules en un tablero.\n")
+                f.write("Se compara la eficiencia de dos algoritmos de búsqueda:\n")
+                f.write("- A* (con heurística)\n")
+                f.write("- BFS (búsqueda ciega)\n\n")
+                
+                f.write("## Heurística Implementada\n\n")
+                f.write("h(n) = luces_apagadas + distancia_a_luz_más_cercana\n\n")
+                f.write("Esta heurística es optimista porque:\n")
+                f.write("- Nunca sobreestima el costo real\n")
+                f.write("- Considera el mínimo de acciones necesarias\n")
+                f.write("- Usa distancia Manhattan (admisible)\n\n")
+                
+                f.write("## Resultados de Comparación\n\n")
+                
+                total_astar_nodes = 0
+                total_bfs_nodes = 0
+                total_astar_time = 0
+                total_bfs_time = 0
+                
+                for result in self.last_comparison_results:
+                    f.write(f"### {result['level_name']}\n")
+                    f.write(f"- A*: {result['astar']['nodes_explored']} nodos, ")
+                    f.write(f"{result['astar']['steps']} pasos, ")
+                    f.write(f"{result['astar']['execution_time']:.2f}ms\n")
+                    f.write(f"- BFS: {result['bfs']['nodes_explored']} nodos, ")
+                    f.write(f"{result['bfs']['steps']} pasos, ")
+                    f.write(f"{result['bfs']['execution_time']:.2f}ms\n\n")
+                    
+                    total_astar_nodes += result['astar']['nodes_explored']
+                    total_bfs_nodes += result['bfs']['nodes_explored']
+                    total_astar_time += result['astar']['execution_time']
+                    total_bfs_time += result['bfs']['execution_time']
+                
+                f.write("## Resumen Total\n\n")
+                f.write(f"- A*: {total_astar_nodes} nodos totales, {total_astar_time:.2f}ms totales\n")
+                f.write(f"- BFS: {total_bfs_nodes} nodos totales, {total_bfs_time:.2f}ms totales\n\n")
+                
+                efficiency_nodes = ((total_bfs_nodes - total_astar_nodes) / total_bfs_nodes) * 100
+                efficiency_time = ((total_bfs_time - total_astar_time) / total_bfs_time) * 100
+                
+                f.write("## Análisis de Eficiencia\n\n")
+                f.write(f"- A* exploró {efficiency_nodes:.1f}% menos nodos que BFS\n")
+                f.write(f"- A* fue {efficiency_time:.1f}% más rápido que BFS\n\n")
+                
+                f.write("## Conclusiones\n\n")
+                f.write("Los resultados demuestran que A* es más eficiente que BFS\n")
+                f.write("gracias al uso de información heurística que guía la búsqueda\n")
+                f.write("hacia estados más prometedores, reduciendo el espacio de búsqueda.\n")
+            
+            print("✅ README.txt generado exitosamente!")
+            
+        except Exception as e:
+            print(f"❌ Error al generar README.txt: {e}")
 
     def _manual_play(self):
         """Modo de juego manual donde el usuario adivina el camino"""
@@ -234,6 +409,7 @@ class LightBotGame:
             new_y = current_node.y + dy
             
             if self.game_state.can_move_to(new_x, new_y):
+                from node import Node
                 return Node(new_x, new_y, list(current_node.lights), 
                           current_node, command, current_node.cost + 1)
         
@@ -249,6 +425,7 @@ class LightBotGame:
                 new_lights = list(current_node.lights)
                 new_lights[light_index] = 1
                 
+                from node import Node
                 return Node(current_node.x, current_node.y, new_lights,
                           current_node, command, current_node.cost + 1)
         
@@ -261,7 +438,7 @@ class LightBotGame:
         
         if result['success']:
             print("\n💡 SOLUCIÓN ÓPTIMA (A*):")
-            self.renderer.show_solution(result['path'])
+            self.renderer.show_solution(result['path'], "A*")
             print(f"Nodos explorados: {result['nodes_explored']}")
             print(f"Tiempo: {result['execution_time']:.2f}ms")
         else:

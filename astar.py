@@ -8,10 +8,12 @@ class AStar:
     def __init__(self, game_state):
         self.game_state = game_state
         self.nodes_explored = 0
+        self.visited_nodes = []
 
     def solve(self):
         """Ejecuta el algoritmo A* para encontrar la solución"""
         self.nodes_explored = 0
+        self.visited_nodes = []
         start_time = time.perf_counter()
     
         initial_node = self.game_state.get_initial_node()
@@ -22,7 +24,6 @@ class AStar:
         closed_set = set()
     
         open_set.enqueue(initial_node)
-        visited_nodes = []  # Para almacenar el orden de visita
         visit_counter = 0
 
         while not open_set.is_empty():
@@ -30,7 +31,7 @@ class AStar:
             self.nodes_explored += 1
             visit_counter += 1
             current_node.visited_order = visit_counter
-            visited_nodes.append(current_node)
+            self.visited_nodes.append(current_node)
 
             # Verificar si llegamos a la meta
             if self.game_state.is_goal(current_node):
@@ -41,7 +42,8 @@ class AStar:
                     'nodes_explored': self.nodes_explored,
                     'execution_time': (end_time - start_time) * 1000,
                     'steps': current_node.cost,
-                    'visited_nodes': visited_nodes  # ← Nuevo: nodos visitados en orden
+                    'visited_nodes': self.visited_nodes,
+                    'final_node': current_node
                 }
 
             current_key = current_node.get_key()
@@ -56,7 +58,7 @@ class AStar:
             for successor in successors:
                 successor_key = successor.get_key()
             
-            if successor_key not in closed_set:
+                if successor_key not in closed_set:
                     successor.heuristic = self.game_state.heuristic(successor)
                     successor.total_cost = successor.cost + successor.heuristic
                     open_set.enqueue(successor)
@@ -68,5 +70,6 @@ class AStar:
             'nodes_explored': self.nodes_explored,
             'execution_time': (end_time - start_time) * 1000,
             'steps': 0,
-            'visited_nodes': visited_nodes  # ← Nuevo
+            'visited_nodes': self.visited_nodes,
+            'final_node': None
         }
