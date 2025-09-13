@@ -24,7 +24,7 @@ class BFS:
 
             # Verificar si llegamos a la meta
             if self.game_state.is_goal(current_node):
-                end_time = time.time()
+                end_time = time.perf_counter()
                 return {
                     'success': True,
                     'path': current_node.get_path(),

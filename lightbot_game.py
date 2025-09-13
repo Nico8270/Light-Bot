@@ -55,25 +55,40 @@ class LightBotGame:
         """Resuelve un nivel específico con ambos algoritmos"""
         level = get_level(level_number)
         robot_x, robot_y = level['robot_start']
-        
+    
         self.game_state = GameState(level['grid'], robot_x, robot_y)
+    
+        print("\n" + "="*60)
+        print("🎯 PRESENTACIÓN DEL PROBLEMA")
+        print("="*60)
         self.renderer.render_level(level, robot_x, robot_y)
-        
-        print("Resolviendo con A*...")
+    
+        input("\nPresiona ENTER para ver la solución con A*...")
+    
+        print("\n" + "="*60)
+        print("🔍 RESOLVIENDO CON A* (ALGORITMO INFORMADO)")
+        print("="*60)
         astar_solver = AStar(self.game_state)
         astar_result = astar_solver.solve()
-        
-        print("Resolviendo con BFS...")
+    
+        # Mostrar progreso detallado de A*
+        self.renderer.show_algorithm_progress(level, astar_result, "A*")
+    
+        input("\nPresiona ENTER para ver la solución con BFS...")
+    
+        print("\n" + "="*60)
+        print("🔍 RESOLVIENDO CON BFS (BÚSQUEDA CIEGA)")
+        print("="*60)
         bfs_solver = BFS(self.game_state)
         bfs_result = bfs_solver.solve()
-        
-        # Mostrar resultados
+    
+        # Mostrar progreso detallado de BFS
+        self.renderer.show_algorithm_progress(level, bfs_result, "BFS")
+    
+        input("\nPresiona ENTER para ver la comparación...")
+    
+        # Mostrar comparación
         self.renderer.show_stats(astar_result, bfs_result)
-        
-        if astar_result['success']:
-            self.renderer.show_solution(astar_result['path'])
-        else:
-            print("No se encontró solución.")
 
     def _compare_all_levels(self):
         """Compara el rendimiento en todos los niveles"""

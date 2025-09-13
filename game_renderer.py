@@ -119,23 +119,93 @@ class GameRenderer:
 
     def show_stats(self, astar_result, bfs_result):
         """Muestra las estadísticas de comparación"""
-        print("=== COMPARACIÓN DE ALGORITMOS ===")
+        print("\n" + "="*60)
+        print("📊 COMPARACIÓN DE ALGORITMOS")
+        print("="*60)
         print()
-        print("A* (Heurística):")
+        print("A* (Heurística - Algoritmo Informado):")
         print(f"  Nodos explorados: {astar_result['nodes_explored']}")
         print(f"  Pasos solución: {astar_result['steps']}")
         print(f"  Tiempo: {astar_result['execution_time']:.2f}ms")
         print()
-        print("BFS (Búsqueda Ciega):")
+        print("BFS (Búsqueda Ciega - Sin información):")
         print(f"  Nodos explorados: {bfs_result['nodes_explored']}")
         print(f"  Pasos solución: {bfs_result['steps']}")
         print(f"  Tiempo: {bfs_result['execution_time']:.2f}ms")
         print()
-        
+    
         if astar_result['success'] and bfs_result['success']:
-            print("=== ANÁLISIS ===")
+            print("=== ANÁLISIS DE EFICIENCIA ===")
             efficiency_nodes = ((bfs_result['nodes_explored'] - astar_result['nodes_explored']) / bfs_result['nodes_explored']) * 100
-            efficiency_time = ((bfs_result['execution_time'] - astar_result['execution_time']) / bfs_result['execution_time']) * 100
-            
-            print(f"A* exploró {efficiency_nodes:.1f}% menos nodos que BFS")
-            print(f"A* fue {efficiency_time:.1f}% más rápido que BFS")
+        
+            # Evitar división por cero en tiempo
+            if bfs_result['execution_time'] > 0 and astar_result['execution_time'] > 0:
+                efficiency_time = ((bfs_result['execution_time'] - astar_result['execution_time']) / bfs_result['execution_time']) * 100
+                print(f"📈 A* exploró {efficiency_nodes:.1f}% menos nodos que BFS")
+                if efficiency_time > 0:
+                    print(f"⚡ A* fue {efficiency_time:.1f}% más rápido que BFS")
+                else:
+                    print(f"🐢 BFS fue {abs(efficiency_time):.1f}% más rápido que A*")
+            else:
+                print(f"📈 A* exploró {efficiency_nodes:.1f}% menos nodos que BFS")
+                print("⏱️  El tiempo de ejecución es muy rápido para comparar")
+
+    def show_visited_path(self, level, visited_nodes, algorithm_name):
+        """Muestra el recorrido de nodos visitados por el algoritmo"""
+        print(f"\n" + "="*60)
+        print(f"🗺️  RECORRIDO DE {algorithm_name} - {len(visited_nodes)} NODOS VISITADOS")
+        print("="*60)
+    
+        # Crear grid para mostrar el recorrido
+        grid = level['grid']
+        rows = len(grid)
+        cols = len(grid[0])
+    
+        # Matriz para almacenar el orden de visita
+        visit_grid = [[0] * cols for _ in range(rows)]
+    
+        for node in visited_nodes:
+            if 0 <= node.x < rows and 0 <= node.y < cols:
+                visit_grid[node.x][node.y] = node.visited_order
+    
+        print("\nOrden de visita en cada celda (0 = no visitado):")
+        print("-" * (cols * 4))
+    
+        for i in range(rows):
+            row_display = []
+            for j in range(cols):
+                if grid[i][j] == 1:  # Obstáculo
+                    row_display.append(" ### ")
+                elif visit_grid[i][j] > 0:
+                    row_display.append(f"{visit_grid[i][j]:>4d}")
+                else:
+                    row_display.append("   . ")
+            print(" ".join(row_display))
+    
+        print("-" * (cols * 4))
+        print(f"Total de nodos únicos visitados: {len(set((node.x, node.y) for node in visited_nodes))}")
+
+    def show_algorithm_progress(self, level, result, algorithm_name):
+        """Muestra el progreso completo del algoritmo"""
+        print(f"\n" + "="*60)
+        print(f"📊 {algorithm_name} - RESULTADOS DETALLADOS")
+        print("="*60)
+    
+        if result['success']:
+            print(f"✅ ¡Solución encontrada en {result['steps']} pasos!")
+            print(f"🔍 Nodos explorados: {result['nodes_explored']}")
+            print(f"⏱️  Tiempo: {result['execution_time']:.2f}ms")
+        
+            # Mostrar recorrido de visita
+            self.show_visited_path(level, result['visited_nodes'], algorithm_name)
+        
+            # Mostrar camino solución
+            print(f"\n🛣️  CAMINO SOLUCIÓN ({algorithm_name}):")
+            self.show_solution(result['path'])
+        else:
+            print("❌ No se encontró solución")
+            print(f"🔍 Nodos explorados: {result['nodes_explored']}")
+            print(f"⏱️  Tiempo: {result['execution_time']:.2f}ms")
+        
+            # Mostrar recorrido de visita aunque no haya solución
+            self.show_visited_path(level, result['visited_nodes'], algorithm_name)

@@ -12,6 +12,7 @@ class Node:
         self.cost = cost              # Costo acumulado (g en A*)
         self.heuristic = 0            # Valor heurístico (h en A*)
         self.total_cost = 0           # Costo total (f = g + h en A*)
+        self.visited_order = -1       # Orden en que fue visitado
 
     def get_key(self):
         """Genera una clave única para este estado"""
